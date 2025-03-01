@@ -1270,6 +1270,26 @@ def save_to_gguf(
     return all_saved_locations, full_precision_seen
 pass
 
+def save_to_vision_gguf(model_name, hf_model_path, output_folder, quantization, dtype):
+    """
+    Converts a model to GGUF format.
+
+    Parameters:
+        model_name (str): The name of the model (e.g., 'llama', 'mistral', 'qwen2-vl').
+        hf_model_path (str): Path to the Hugging Face model.
+        output_folder (str): Path to the output directory.
+        quantization (str): Quantization method to be used.
+        dtype (str): Data type for the conversion.
+    """
+    conversion_script = "convert-to-gguf.py"
+    command = [
+        "python", conversion_script, model_path, "--dtype", dtype
+    ]
+    try:
+        subprocess.run(command, check=True)
+        print(f"Successfully converted {model_name} model to GGUF format.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during conversion: {e}")
 
 def unsloth_save_pretrained_merged(
     self,
@@ -1540,8 +1560,12 @@ def fix_tokenizer_bos_token(tokenizer):
     # Check if BOS added already, then warn
     fix_bos_token = False
     chat_template = getattr(tokenizer, "chat_template", None)
+    try:
+        tokenized_output = tokenizer(images = [Image.new('RGB', (224, 224), color=(0, 0, 0))], text="A")
+    except:
+        tokenized_output = tokenizer("A")
 
-    if (tokenizer("A").input_ids[0] == getattr(tokenizer, "bos_token_id", None)):
+    if (tokenized_output.input_ids[0] == getattr(tokenizer, "bos_token_id", None)):
         if chat_template is not None and \
             (
                 tokenizer.bos_token in chat_template or \
@@ -1748,6 +1772,187 @@ def unsloth_save_pretrained_gguf(
     all_file_locations, want_full_precision = save_to_gguf(
         model_type, model_dtype, is_sentencepiece_model,
         new_save_directory, quantization_method, first_conversion, makefile,
+    )
+
+    # Save Ollama modelfile
+    modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
+    modelfile_location = None
+    if modelfile is not None:
+        modelfile_location = os.path.join(new_save_directory, "Modelfile")
+        with open(modelfile_location, "w") as file:
+            file.write(modelfile)
+        pass
+        print(f"Unsloth: Saved Ollama Modelfile to {modelfile_location}")
+    pass
+
+    if fix_bos_token:
+        logger.warning(
+            "Unsloth: ##### The current model auto adds a BOS token.\n"\
+            "Unsloth: ##### We removed it in GGUF's chat template for you."
+        )
+    pass
+
+    if push_to_hub:
+        print("Unsloth: Uploading GGUF to Huggingface Hub...")
+
+        # If not needing full precision, skip the first
+        if not want_full_precision: all_file_locations = all_file_locations[1:]
+
+        for file_location in all_file_locations:
+            username = upload_to_huggingface(
+                self, save_directory, token,
+                "GGUF converted", "gguf", file_location, old_username, private,
+            )
+            link = f"{username}/{new_save_directory.lstrip('/.')}" \
+                if username not in new_save_directory else \
+                new_save_directory.lstrip('/.')
+            print(f"Saved GGUF to https://huggingface.co/{link}")
+        pass
+
+        # Save modelfile
+        if modelfile_location is not None:
+            username = upload_to_huggingface(
+                self, save_directory, token,
+                "GGUF converted", "gguf", modelfile_location, old_username, private,
+            )
+            print(f"Saved Ollama Modelfile to https://huggingface.co/{link}")
+        pass
+    pass
+pass
+
+def unsloth_save_pretrained_vision_gguf(
+    self,
+    save_directory       : Union[str, os.PathLike],
+    tokenizer            = None,
+    quantization_method  : str = "fast_quantized",
+    first_conversion     : str = None,
+    push_to_hub          : bool = False,
+    token                : Optional[Union[str, bool]] = None,
+    private              : Optional[bool] = None,
+    is_main_process      : bool = True,
+    state_dict           : Optional[dict] = None,
+    save_function        : Callable = torch.save,
+    max_shard_size       : Union[int, str] = "5GB",
+    safe_serialization   : bool = True,
+    variant              : Optional[str] = None,
+    save_peft_format     : bool = True,
+    tags                 : List[str] = None,
+    temporary_location   : str = "_unsloth_temporary_saved_buffers",
+    maximum_memory_usage : float = 0.85,
+):
+    """
+        Same as .save_pretrained(...) except 4bit weights are auto
+        converted to float16 then converted to GGUF / llama.cpp format.
+
+        Choose for `quantization_method` to be:
+        "not_quantized"  : "Recommended. Fast conversion. Slow inference, big files.",
+        "fast_quantized" : "Recommended. Fast conversion. OK inference, OK file size.",
+        "quantized"      : "Recommended. Slow conversion. Fast inference, small files.",
+        "f32"     : "Not recommended. Retains 100% accuracy, but super slow and memory hungry.",
+        "f16"     : "Fastest conversion + retains 100% accuracy. Slow and memory hungry.",
+        "q8_0"    : "Fast conversion. High resource use, but generally acceptable.",
+        "q4_k_m"  : "Recommended. Uses Q6_K for half of the attention.wv and feed_forward.w2 tensors, else Q4_K",
+        "q5_k_m"  : "Recommended. Uses Q6_K for half of the attention.wv and feed_forward.w2 tensors, else Q5_K",
+        "q2_k"    : "Uses Q4_K for the attention.vw and feed_forward.w2 tensors, Q2_K for the other tensors.",
+        "q3_k_l"  : "Uses Q5_K for the attention.wv, attention.wo, and feed_forward.w2 tensors, else Q3_K",
+        "q3_k_m"  : "Uses Q4_K for the attention.wv, attention.wo, and feed_forward.w2 tensors, else Q3_K",
+        "q3_k_s"  : "Uses Q3_K for all tensors",
+        "q4_0"    : "Original quant method, 4-bit.",
+        "q4_1"    : "Higher accuracy than q4_0 but not as high as q5_0. However has quicker inference than q5 models.",
+        "q4_k_s"  : "Uses Q4_K for all tensors",
+        "q4_k"    : "alias for q4_k_m",
+        "q5_k"    : "alias for q5_k_m",
+        "q5_0"    : "Higher accuracy, higher resource usage and slower inference.",
+        "q5_1"    : "Even higher accuracy, resource usage and slower inference.",
+        "q5_k_s"  : "Uses Q5_K for all tensors",
+        "q6_k"    : "Uses Q8_K for all tensors",
+        "iq2_xxs" : "2.06 bpw quantization",
+        "iq2_xs"  : "2.31 bpw quantization",
+        "iq3_xxs" : "3.06 bpw quantization",
+        "q3_k_xs" : "3-bit extra small quantization",
+    """
+    if tokenizer is None:
+        raise ValueError("Unsloth: Saving to GGUF must have a tokenizer.")
+
+    arguments = dict(locals())
+    arguments["model"]        = self
+    arguments["tokenizer"]    = tokenizer
+    arguments["push_to_hub"]  = False # We save ourselves
+    arguments["save_method"] = "merged_16bit" # Must be 16bit
+    del arguments["self"]
+    del arguments["quantization_method"]
+    del arguments["first_conversion"]
+
+    # Fix tokenizer adding an extra BOS token at the front
+    fix_bos_token, old_chat_template = fix_tokenizer_bos_token(tokenizer)
+
+    # Non blocking install GGUF first
+    if not os.path.exists("llama.cpp"):
+
+        if IS_KAGGLE_ENVIRONMENT:
+            # Kaggle is weird - no blocking installs, and no CUDA?
+            python_install = install_python_non_blocking(["gguf", "protobuf"])
+            python_install.wait()
+            install_llama_cpp_blocking(use_cuda = False)
+            new_save_directory, old_username = unsloth_save_model(**arguments)
+            makefile = None
+        else:
+            git_clone = install_llama_cpp_clone_non_blocking()
+            python_install = install_python_non_blocking(["gguf", "protobuf"])
+            git_clone.wait()
+            makefile = install_llama_cpp_make_non_blocking()
+            new_save_directory, old_username = unsloth_save_model(**arguments)
+            python_install.wait()
+        pass
+    else:
+        try:
+            new_save_directory, old_username = unsloth_save_model(**arguments)
+            makefile = None
+        except:
+            # Retry by recloning llama.cpp
+            if IS_KAGGLE_ENVIRONMENT:
+                # Kaggle is weird - no blocking installs, and no CUDA?
+                python_install = install_python_non_blocking(["gguf", "protobuf"])
+                python_install.wait()
+                install_llama_cpp_blocking(use_cuda = False)
+                new_save_directory, old_username = unsloth_save_model(**arguments)
+                makefile = None
+            else:
+                git_clone = install_llama_cpp_clone_non_blocking()
+                python_install = install_python_non_blocking(["gguf", "protobuf"])
+                git_clone.wait()
+                makefile = install_llama_cpp_make_non_blocking()
+                new_save_directory, old_username = unsloth_save_model(**arguments)
+                python_install.wait()
+            pass
+        pass
+    pass
+
+    # Use old chat template if the bos is removed
+    if fix_bos_token:
+        tokenizer.chat_template = old_chat_template
+    pass
+
+    for _ in range(3):
+        gc.collect()
+
+    model_dtype = self.config.torch_dtype
+    model_type  = self.config.model_type
+    if type(model_dtype) is str:
+        assert(model_dtype == "float16" or model_dtype == "bfloat16")
+    elif model_dtype == torch.float16:
+        model_dtype = "float16"
+    elif model_dtype == torch.bfloat16:
+        model_dtype = "bfloat16"
+    else:
+        raise TypeError("Unsloth: Model dtype can only be float16 or bfloat16")
+    pass
+
+    is_sentencepiece_model = check_if_sentencepiece_model(self)
+
+    # Save to GGUF
+    all_file_locations, want_full_precision = save_to_vision_gguf(
+        model_type, new_save_directory, quantization_method
     )
 
     # Save Ollama modelfile
@@ -2356,7 +2561,7 @@ def patch_saving_functions(model, vision = False):
         model.push_to_hub_merged     = types.MethodType(unsloth_generic_push_to_hub_merged,     model)
         model.save_pretrained_merged = types.MethodType(unsloth_generic_save_pretrained_merged, model)
         model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
-        model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
+        model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_vision_gguf,                   model)
     pass
     return model
 pass
