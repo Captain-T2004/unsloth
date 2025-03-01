@@ -1281,7 +1281,7 @@ def save_to_gguf(
     return all_saved_locations, full_precision_seen
 pass
 
-def save_to_vision_gguf(model_name, hf_model_path, output_folder, quantization, dtype):
+def save_to_vision_gguf(model_name, hf_model_path, dtype):
     """
     Converts a model to GGUF format.
 
@@ -1966,7 +1966,7 @@ def unsloth_save_pretrained_vision_gguf(
 
     # Save to GGUF
     all_file_locations, want_full_precision = save_to_vision_gguf(
-        model_type, new_save_directory, quantization_method
+        model_name = "qwen2-vl", hf_model_path = new_save_directory, dtype = model_dtype
     )
 
     # Save Ollama modelfile
