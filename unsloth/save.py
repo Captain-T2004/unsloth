@@ -1294,7 +1294,7 @@ def save_to_vision_gguf(model_name, hf_model_path, dtype):
     """
     conversion_script = "convert-to-gguf.py"
     command = [
-        "python", conversion_script, model_path, "--dtype", dtype
+        "python", conversion_script, hf_model_path, "--dtype", dtype
     ]
     try:
         subprocess.run(command, check=True)
