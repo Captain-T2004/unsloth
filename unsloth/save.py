@@ -1301,6 +1301,7 @@ def save_to_vision_gguf(model_name, hf_model_path, dtype):
         print(f"Successfully converted {model_name} model to GGUF format.")
     except subprocess.CalledProcessError as e:
         print(f"Error during conversion: {e}")
+    return
 
 def unsloth_save_pretrained_merged(
     self,
@@ -1965,54 +1966,55 @@ def unsloth_save_pretrained_vision_gguf(
         is_sentencepiece_model = check_if_sentencepiece_model(self)
 
     # Save to GGUF
-    all_file_locations, want_full_precision = save_to_vision_gguf(
+    save_to_vision_gguf(
         model_name = "qwen2-vl", hf_model_path = new_save_directory, dtype = model_dtype
     )
+    print("HO GAYA BHAI")
 
     # Save Ollama modelfile
-    modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
-    modelfile_location = None
-    if modelfile is not None:
-        modelfile_location = os.path.join(new_save_directory, "Modelfile")
-        with open(modelfile_location, "w") as file:
-            file.write(modelfile)
-        pass
-        print(f"Unsloth: Saved Ollama Modelfile to {modelfile_location}")
-    pass
+    # modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
+    # modelfile_location = None
+    # if modelfile is not None:
+    #     modelfile_location = os.path.join(new_save_directory, "Modelfile")
+    #     with open(modelfile_location, "w") as file:
+    #         file.write(modelfile)
+    #     pass
+    #     print(f"Unsloth: Saved Ollama Modelfile to {modelfile_location}")
+    # pass
 
-    if fix_bos_token:
-        logger.warning(
-            "Unsloth: ##### The current model auto adds a BOS token.\n"\
-            "Unsloth: ##### We removed it in GGUF's chat template for you."
-        )
-    pass
+    # if fix_bos_token:
+    #     logger.warning(
+    #         "Unsloth: ##### The current model auto adds a BOS token.\n"\
+    #         "Unsloth: ##### We removed it in GGUF's chat template for you."
+    #     )
+    # pass
 
-    if push_to_hub:
-        print("Unsloth: Uploading GGUF to Huggingface Hub...")
+    # if push_to_hub:
+    #     print("Unsloth: Uploading GGUF to Huggingface Hub...")
 
-        # If not needing full precision, skip the first
-        if not want_full_precision: all_file_locations = all_file_locations[1:]
+    #     # If not needing full precision, skip the first
+    #     if not want_full_precision: all_file_locations = all_file_locations[1:]
 
-        for file_location in all_file_locations:
-            username = upload_to_huggingface(
-                self, save_directory, token,
-                "GGUF converted", "gguf", file_location, old_username, private,
-            )
-            link = f"{username}/{new_save_directory.lstrip('/.')}" \
-                if username not in new_save_directory else \
-                new_save_directory.lstrip('/.')
-            print(f"Saved GGUF to https://huggingface.co/{link}")
-        pass
+    #     for file_location in all_file_locations:
+    #         username = upload_to_huggingface(
+    #             self, save_directory, token,
+    #             "GGUF converted", "gguf", file_location, old_username, private,
+    #         )
+    #         link = f"{username}/{new_save_directory.lstrip('/.')}" \
+    #             if username not in new_save_directory else \
+    #             new_save_directory.lstrip('/.')
+    #         print(f"Saved GGUF to https://huggingface.co/{link}")
+    #     pass
 
-        # Save modelfile
-        if modelfile_location is not None:
-            username = upload_to_huggingface(
-                self, save_directory, token,
-                "GGUF converted", "gguf", modelfile_location, old_username, private,
-            )
-            print(f"Saved Ollama Modelfile to https://huggingface.co/{link}")
-        pass
-    pass
+    #     # Save modelfile
+    #     if modelfile_location is not None:
+    #         username = upload_to_huggingface(
+    #             self, save_directory, token,
+    #             "GGUF converted", "gguf", modelfile_location, old_username, private,
+    #         )
+    #         print(f"Saved Ollama Modelfile to https://huggingface.co/{link}")
+    #     pass
+    # pass
 pass
 
 
