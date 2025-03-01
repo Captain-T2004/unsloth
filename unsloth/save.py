@@ -102,6 +102,17 @@ ALLOWED_QUANTS = \
     "q3_k_xs" : "3-bit extra small quantization",
 }
 
+def check_for_qwen2_vl(model):
+    try:
+        if("Qwen2" in str(type(model)) and ("VL" in str(type(model)) or "Vision" in str(type(model)))):
+            return True
+        elif("Qwen2" in str(type(model.base_model.model)) and ("VL" in str(type(model.base_model.model)) or "Vision" in str(type(model.base_model.model)))):
+            return True
+        return False
+    except:
+        return False
+pass
+
 def print_quantization_methods():
     for key, value in ALLOWED_QUANTS.items():
         print(f'"{key}"  ==> {value}')
@@ -1948,7 +1959,10 @@ def unsloth_save_pretrained_vision_gguf(
         raise TypeError("Unsloth: Model dtype can only be float16 or bfloat16")
     pass
 
-    is_sentencepiece_model = check_if_sentencepiece_model(self)
+    if(check_for_qwen2_vl(self)):
+        is_sentencepiece_model = False
+    else:
+        is_sentencepiece_model = check_if_sentencepiece_model(self)
 
     # Save to GGUF
     all_file_locations, want_full_precision = save_to_vision_gguf(
