@@ -24,7 +24,7 @@ from .llama import *
 from ..kernels import (
     post_patch_loss_function,
 )
-from ._utils import __version__
+from ._utils import __version__, check_nvidia
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import set_seed as transformers_set_seed
 from unsloth_zoo.peft_utils import (
