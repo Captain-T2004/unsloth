@@ -2394,12 +2394,12 @@ def patch_saving_functions(model, vision = False):
         # Vision only 1 option
         model.push_to_hub_merged     = types.MethodType(unsloth_generic_push_to_hub_merged,     model)
         model.save_pretrained_merged = types.MethodType(unsloth_generic_save_pretrained_merged, model)
-        if(check_for_qwen2_vl(model)):
-            model.push_to_hub_gguf       = types.MethodType(unsloth_push_to_hub_gguf,               model)
-            model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_gguf,           model)
-        else:
-            model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
-            model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
+        # if(check_for_qwen2_vl(model)):
+        model.push_to_hub_gguf       = types.MethodType(unsloth_push_to_hub_gguf,               model)
+        model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_gguf,           model)
+        # else:
+        #     model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
+        #     model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
         pass
     pass
     return model
