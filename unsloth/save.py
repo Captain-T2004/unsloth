@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from PIL import Image
 from unsloth_zoo.utils import Version
 from bitsandbytes.nn import Linear4bit as Bnb_Linear4bit
 from peft.tuners.lora import Linear4bit as Peft_Linear4bit
@@ -101,6 +102,17 @@ ALLOWED_QUANTS = \
     # "iq3_xxs" : "3.06 bpw quantization",
     "q3_k_xs" : "3-bit extra small quantization",
 }
+
+def check_for_qwen2_vl(model):
+    try:
+        if("Qwen2" in str(type(model)) and ("VL" in str(type(model)) or "Vision" in str(type(model)))):
+            return True
+        elif("Qwen2" in str(type(model.base_model.model)) and ("VL" in str(type(model.base_model.model)) or "Vision" in str(type(model.base_model.model)))):
+            return True
+        return False
+    except:
+        return False
+pass
 
 def print_quantization_methods():
     for key, value in ALLOWED_QUANTS.items():
@@ -1540,8 +1552,11 @@ def fix_tokenizer_bos_token(tokenizer):
     # Check if BOS added already, then warn
     fix_bos_token = False
     chat_template = getattr(tokenizer, "chat_template", None)
-
-    if (tokenizer("A").input_ids[0] == getattr(tokenizer, "bos_token_id", None)):
+    try:
+        tokenized_output = tokenizer(text="A", images = [Image.new('RGB', (224, 224), color=(0, 0, 0))])
+    except:
+        tokenized_output = tokenizer("A")
+    if (tokenized_output.input_ids[0] == getattr(tokenizer, "bos_token_id", None)):
         if chat_template is not None and \
             (
                 tokenizer.bos_token in chat_template or \
@@ -1742,7 +1757,11 @@ def unsloth_save_pretrained_gguf(
         raise TypeError("Unsloth: Model dtype can only be float16 or bfloat16")
     pass
 
-    is_sentencepiece_model = check_if_sentencepiece_model(self)
+    if(check_for_qwen2_vl(self)):
+        is_sentencepiece_model = False
+    else:
+        is_sentencepiece_model = check_if_sentencepiece_model(self)
+    pass
 
     # Save to GGUF
     all_file_locations, want_full_precision = save_to_gguf(
@@ -1793,6 +1812,14 @@ def unsloth_save_pretrained_gguf(
             )
             print(f"Saved Ollama Modelfile to https://huggingface.co/{link}")
         pass
+    pass
+
+    if(check_for_qwen2_vl(self)):
+        print("\nTo run this model you will need to download mmproject file from these links: \n\
+            for 2B-Model: https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF \n\
+            for 7B-Model: https://huggingface.co/second-state/Qwen2-VL-7B-Instruct-GGUF \n\
+            and for inferencing the model use the following code:\n\
+            ./bin/llama-qwen2vl-cli  -m models/qwen2_vl_model.gguf --mmproj qwen2-vl-mmproj-file.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
 pass
 
@@ -1920,7 +1947,11 @@ def unsloth_push_to_hub_gguf(
         raise TypeError("Unsloth: Model dtype can only be float16 or bfloat16")
     pass
 
-    is_sentencepiece_model = check_if_sentencepiece_model(self)
+    if(check_for_qwen2_vl(self)):
+        is_sentencepiece_model = False
+    else:
+        is_sentencepiece_model = check_if_sentencepiece_model(self)
+    pass
 
     # Save to GGUF
     all_file_locations, want_full_precision = save_to_gguf(
@@ -1969,6 +2000,14 @@ def unsloth_push_to_hub_gguf(
             "Unsloth: ##### The current model auto adds a BOS token.\n"\
             "Unsloth: ##### We removed it in GGUF's chat template for you."
         )
+    pass
+
+    if(check_for_qwen2_vl(self)):
+        print("\nTo run this model you will need to download mmproject file from these links: \n\
+            for 2B-Model: https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF \n\
+            for 7B-Model: https://huggingface.co/second-state/Qwen2-VL-7B-Instruct-GGUF \n\
+            and for inferencing the model use the following code:\n\
+            ./bin/llama-qwen2vl-cli  -m models/qwen2_vl_model.gguf --mmproj qwen2-vl-mmproj-file.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
 pass
 
@@ -2355,8 +2394,13 @@ def patch_saving_functions(model, vision = False):
         # Vision only 1 option
         model.push_to_hub_merged     = types.MethodType(unsloth_generic_push_to_hub_merged,     model)
         model.save_pretrained_merged = types.MethodType(unsloth_generic_save_pretrained_merged, model)
-        model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
-        model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
+        if(check_for_qwen2_vl(model)):
+            model.push_to_hub_gguf       = types.MethodType(unsloth_push_to_hub_gguf,               model)
+            model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_gguf,           model)
+        else:
+            model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
+            model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
+        pass
     pass
     return model
 pass
