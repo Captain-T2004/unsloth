@@ -953,6 +953,13 @@ def get_executable(executables):
     return None
 pass
 
+def save_qwen2_vision_encoder(model_location, d_type):
+    print("Running surgery file...")
+    perform_surgery = f"python qwen2_vl_surgery.py {model_location} --d_type {d_type} --output_dir {model_location}"
+    try_execute([perform_surgery], force_complete=True)
+    print(f"Vision Encoder saved to {model_location}")
+    return model_location
+pass
 
 def save_to_gguf(
     model_type           : str,
@@ -1769,6 +1776,14 @@ def unsloth_save_pretrained_gguf(
         new_save_directory, quantization_method, first_conversion, makefile,
     )
 
+    vision_encoder_file = None
+    if check_for_qwen2_vl(self):
+        # Save the vision encoder and get its file path
+        vision_encoder_file = save_qwen2_vision_encoder(all_file_locations[0], model_dtype)
+        print("\nTo run this model using llama-qwen2vl-cli \n\
+            ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
+    pass
+
     # Save Ollama modelfile
     modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
     modelfile_location = None
@@ -1789,10 +1804,10 @@ def unsloth_save_pretrained_gguf(
 
     if push_to_hub:
         print("Unsloth: Uploading GGUF to Huggingface Hub...")
-
         # If not needing full precision, skip the first
         if not want_full_precision: all_file_locations = all_file_locations[1:]
 
+        # Upload LLM GGUF files
         for file_location in all_file_locations:
             username = upload_to_huggingface(
                 self, save_directory, token,
@@ -1804,6 +1819,18 @@ def unsloth_save_pretrained_gguf(
             print(f"Saved GGUF to https://huggingface.co/{link}")
         pass
 
+        # Upload vision encoder GGUF file if it exists
+        if check_for_qwen2_vl(self) and vision_encoder_file is not None:
+            username = upload_to_huggingface(
+                self, save_directory, token,
+                "GGUF vision encoder", "gguf", vision_encoder_file, old_username, private,
+            )
+            link = f"{username}/{new_save_directory.lstrip('/.')}" \
+                if username not in new_save_directory else \
+                new_save_directory.lstrip('/.')
+            print(f"Saved vision encoder GGUF to https://huggingface.co/{link}")
+        pass
+
         # Save modelfile
         if modelfile_location is not None:
             username = upload_to_huggingface(
@@ -1812,14 +1839,6 @@ def unsloth_save_pretrained_gguf(
             )
             print(f"Saved Ollama Modelfile to https://huggingface.co/{link}")
         pass
-    pass
-
-    if(check_for_qwen2_vl(self)):
-        print("\nTo run this model you will need to download mmproject file from these links: \n\
-            for 2B-Model: https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF \n\
-            for 7B-Model: https://huggingface.co/second-state/Qwen2-VL-7B-Instruct-GGUF \n\
-            and for inferencing the model use the following code:\n\
-            ./bin/llama-qwen2vl-cli  -m models/qwen2_vl_model.gguf --mmproj qwen2-vl-mmproj-file.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
 pass
 
@@ -1959,6 +1978,13 @@ def unsloth_push_to_hub_gguf(
         new_save_directory, quantization_method, first_conversion, makefile,
     )
 
+    vision_encoder_file = None
+    if check_for_qwen2_vl(self):
+        # Save the vision encoder and get its file path
+        vision_encoder_file = save_qwen2_vision_encoder(all_file_locations[0], model_dtype)
+        print("\nTo run this model using llama-qwen2vl-cli \n\
+            ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
+    pass
     # Save Ollama modelfile
     modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
     modelfile_location = None
@@ -1986,6 +2012,15 @@ def unsloth_push_to_hub_gguf(
         print(f"Saved GGUF to https://huggingface.co/{link}")
     pass
 
+    if check_for_qwen2_vl(self) and vision_encoder_file is not None:
+        username = upload_to_huggingface(
+            self, repo_id, token,
+            "GGUF vision encoder", "gguf", vision_encoder_file, old_username, private,
+        )
+        link = f"{username}/{new_save_directory.lstrip('/.')}")
+        print(f"Saved vision encoder GGUF to https://huggingface.co/{link}")
+    pass
+
     # Save modelfile
     if modelfile_location is not None:
         username = upload_to_huggingface(
@@ -2000,14 +2035,6 @@ def unsloth_push_to_hub_gguf(
             "Unsloth: ##### The current model auto adds a BOS token.\n"\
             "Unsloth: ##### We removed it in GGUF's chat template for you."
         )
-    pass
-
-    if(check_for_qwen2_vl(self)):
-        print("\nTo run this model you will need to download mmproject file from these links: \n\
-            for 2B-Model: https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF \n\
-            for 7B-Model: https://huggingface.co/second-state/Qwen2-VL-7B-Instruct-GGUF \n\
-            and for inferencing the model use the following code:\n\
-            ./bin/llama-qwen2vl-cli  -m models/qwen2_vl_model.gguf --mmproj qwen2-vl-mmproj-file.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
 pass
 
@@ -2394,12 +2421,12 @@ def patch_saving_functions(model, vision = False):
         # Vision only 1 option
         model.push_to_hub_merged     = types.MethodType(unsloth_generic_push_to_hub_merged,     model)
         model.save_pretrained_merged = types.MethodType(unsloth_generic_save_pretrained_merged, model)
-        # if(check_for_qwen2_vl(model)):
-        model.push_to_hub_gguf       = types.MethodType(unsloth_push_to_hub_gguf,               model)
-        model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_gguf,           model)
-        # else:
-        #     model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
-        #     model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
+        if(check_for_qwen2_vl(model)):
+            model.push_to_hub_gguf       = types.MethodType(unsloth_push_to_hub_gguf,               model)
+            model.save_pretrained_gguf   = types.MethodType(unsloth_save_pretrained_gguf,           model)
+        else:
+            model.push_to_hub_gguf       = types.MethodType(not_implemented_save,                   model)
+            model.save_pretrained_gguf   = types.MethodType(not_implemented_save,                   model)
         pass
     pass
     return model
