@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from PIL import Image
+import requests
 from unsloth_zoo.utils import Version
 from bitsandbytes.nn import Linear4bit as Bnb_Linear4bit
 from peft.tuners.lora import Linear4bit as Peft_Linear4bit
