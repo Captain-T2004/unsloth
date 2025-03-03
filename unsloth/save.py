@@ -1789,7 +1789,7 @@ def unsloth_save_pretrained_gguf(
         print("\nTo run this model using llama-qwen2vl-cli \n\
             ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
-
+    if vision_encoder_file: all_file_locations.append(vision_encoder_file)
     # Save Ollama modelfile
     modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
     modelfile_location = None
@@ -1823,18 +1823,6 @@ def unsloth_save_pretrained_gguf(
                 if username not in new_save_directory else \
                 new_save_directory.lstrip('/.')
             print(f"Saved GGUF to https://huggingface.co/{link}")
-        pass
-
-        # Upload vision encoder GGUF file if it exists
-        if check_for_qwen2_vl(self) and vision_encoder_file is not None:
-            username = upload_to_huggingface(
-                self, save_directory, token,
-                "GGUF vision encoder", "gguf", vision_encoder_file, old_username, private,
-            )
-            link = f"{username}/{new_save_directory.lstrip('/.')}" \
-                if username not in new_save_directory else \
-                new_save_directory.lstrip('/.')
-            print(f"Saved vision encoder GGUF to https://huggingface.co/{link}")
         pass
 
         # Save modelfile
@@ -1991,6 +1979,7 @@ def unsloth_push_to_hub_gguf(
         print("\nTo run this model using llama-qwen2vl-cli \n\
             ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
+    if vision_encoder_file: all_file_locations.append(vision_encoder_file)
     # Save Ollama modelfile
     modelfile = create_ollama_modelfile(tokenizer, all_file_locations[0])
     modelfile_location = None
@@ -2017,16 +2006,6 @@ def unsloth_push_to_hub_gguf(
 
         print(f"Saved GGUF to https://huggingface.co/{link}")
     pass
-
-    if check_for_qwen2_vl(self) and vision_encoder_file is not None:
-        username = upload_to_huggingface(
-            self, repo_id, token,
-            "GGUF vision encoder", "gguf", vision_encoder_file, old_username, private,
-        )
-        link = f"{username}/{new_save_directory.lstrip('/.')}"
-        print(f"Saved vision encoder GGUF to https://huggingface.co/{link}")
-    pass
-
     # Save modelfile
     if modelfile_location is not None:
         username = upload_to_huggingface(
