@@ -955,10 +955,11 @@ def get_executable(executables):
 pass
 
 def save_qwen2_vision_encoder(model_location, d_type):
+    model_dtype = "f16" if d_type == "float16" else "fp32"
     print("Running surgery file...")
     file = requests.get("https://raw.githubusercontent.com/Captain-T2004/unsloth/llava_support_test/unsloth/qwen2_vl_surgery.py").text
     with open("qwen2_vl_surgery.py", "w") as f: f.write(file)
-    perform_surgery = f"python qwen2_vl_surgery.py {model_location} --d_type {d_type} --output_dir {model_location}"
+    perform_surgery = f"python qwen2_vl_surgery.py {model_location} --d_type {model_dtype} --output_dir {model_location}"
     try_execute([perform_surgery], force_complete=True)
     os.remove("qwen2_vl_surgery.py")
     print(f"Vision Encoder saved to {model_location}")
