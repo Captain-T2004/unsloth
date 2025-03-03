@@ -1,4 +1,5 @@
 import argparse
+import os
 from typing import Dict, Iterator, Tuple
 
 import torch
@@ -126,7 +127,17 @@ def main(args):
             model_name = model_name[:-1]
         model_path = model_name
         model_name = os.path.basename(model_name)
-    fname_out = f"{model_name.replace('/', '-').lower()}-vision.gguf"
+
+    # Create output filename
+    base_filename = f"{model_name.replace('/', '-').lower()}-vision.gguf"
+
+    # Check if output directory is specified
+    if args.output_dir:
+        # Create the output directory if it doesn't exist
+        os.makedirs(args.output_dir, exist_ok=True)
+        fname_out = os.path.join(args.output_dir, base_filename)
+    else:
+        fname_out = base_filename
 
     # Initialize the GGUF writer
     fout = GGUFWriter(path=fname_out, arch="clip")
@@ -208,5 +219,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_name", nargs='?', default="Qwen/Qwen2-VL-2B-Instruct")
     parser.add_argument("--data_type", nargs='?', choices=['fp32', 'fp16'], default="fp16")
+    parser.add_argument("--output_dir", type=str, help="Directory to save the output GGUF file")
     args = parser.parse_args()
     main(args)
