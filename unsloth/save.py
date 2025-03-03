@@ -963,7 +963,7 @@ def save_qwen2_vision_encoder(model_location, d_type):
     try_execute([perform_surgery], force_complete=True)
     os.remove("qwen2_vl_surgery.py")
     print(f"Vision Encoder saved to {model_location}")
-    return model_location
+    return os.path.join(model_location, f"{model_location.lower()}-vision.gguf")
 pass
 
 def save_to_gguf(
