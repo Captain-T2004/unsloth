@@ -85,16 +85,16 @@ def find_vision_tensors(qwen2vl, dtype) -> Dict[str, np.ndarray]:
 
 
 def main(args):
-    if args.data_type == 'fp32':
+    if args.d_type == 'fp32':
         dtype = torch.float32
         np_dtype = np.float32
         ftype = 0
-    elif args.data_type == 'fp16':
+    elif args.d_type == 'fp16':
         dtype = torch.float32  # Keep PyTorch dtype as float32
         np_dtype = np.float16  # Set numpy dtype as float16
         ftype = 1
     else:
-        raise ValueError(f"Unsupported data type: {args.data_type}")
+        raise ValueError(f"Unsupported data type: {args.d_type}")
 
     local_model = False
     model_path = args.model_name
