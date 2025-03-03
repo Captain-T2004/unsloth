@@ -2017,7 +2017,7 @@ def unsloth_push_to_hub_gguf(
             self, repo_id, token,
             "GGUF vision encoder", "gguf", vision_encoder_file, old_username, private,
         )
-        link = f"{username}/{new_save_directory.lstrip('/.')}")
+        link = f"{username}/{new_save_directory.lstrip('/.')}"
         print(f"Saved vision encoder GGUF to https://huggingface.co/{link}")
     pass
 
