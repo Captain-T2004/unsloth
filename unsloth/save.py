@@ -1784,7 +1784,8 @@ def unsloth_save_pretrained_gguf(
     vision_encoder_file = None
     if check_for_qwen2_vl(self):
         # Save the vision encoder and get its file path
-        vision_encoder_file = save_qwen2_vision_encoder(all_file_locations[0], model_dtype)
+        print(new_save_directory)
+        vision_encoder_file = save_qwen2_vision_encoder(new_save_directory, model_dtype)
         print("\nTo run this model using llama-qwen2vl-cli \n\
             ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
@@ -1986,7 +1987,7 @@ def unsloth_push_to_hub_gguf(
     vision_encoder_file = None
     if check_for_qwen2_vl(self):
         # Save the vision encoder and get its file path
-        vision_encoder_file = save_qwen2_vision_encoder(all_file_locations[0], model_dtype)
+        vision_encoder_file = save_qwen2_vision_encoder(new_save_directory, model_dtype)
         print("\nTo run this model using llama-qwen2vl-cli \n\
             ./bin/llama-qwen2vl-cli -m model_file.gguf --mmproj model-mmproj.gguf -p 'user prompt' --image 'data/path-to/image.jpg' -ngl 33 -n 512")
     pass
