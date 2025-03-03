@@ -191,11 +191,8 @@ def main(args):
             processor: Qwen2VLProcessor = AutoProcessor.from_pretrained(original_model_name)
 
         # Convert image_mean and image_std to numpy arrays if they aren't already
-        image_mean = np.array(processor.image_processor.image_mean, dtype=np.float32)
-        image_std = np.array(processor.image_processor.image_std, dtype=np.float32)
-
-        fout.add_array("clip.vision.image_mean", image_mean)
-        fout.add_array("clip.vision.image_std", image_std)
+        fout.add_array("clip.vision.image_mean", processor.image_processor.image_mean)
+        fout.add_array("clip.vision.image_std", processor.image_processor.image_std)
 
         print("Writing GGUF file...")
         fout.write_header_to_file()
